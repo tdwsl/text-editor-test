@@ -169,7 +169,6 @@ create filename filename-size allot
 : redraw ( -- )
   page
   scroll
-  \ h 1- nlines scroll - min 0 do
   h 1- 0 do
     dup i + dup nlines < if
       line dup
@@ -259,6 +258,10 @@ create filename filename-size allot
 
 : split-str ( str len -- str len str len )
   2dup 32 strchr
+  dup if
+    1- swap 1+ swap
+    2swap 1- 2swap
+  then
   2swap 2 pick - ;
 
 : at-bottom ( -- )
@@ -291,7 +294,7 @@ create filename filename-size allot
 : o-file ( -- ior )
   filename-str
   r/o open-file if
-    2drop -1 exit
+    drop -1 exit
   then
   0 to nlines
   0 to col
@@ -321,7 +324,7 @@ create filename filename-size allot
     dup filename c!
     0 do
       dup i + c@
-      filename i + c!
+      filename i + 1+ c!
     loop
     drop
   else
@@ -495,18 +498,28 @@ create filename filename-size allot
   then ;
 
 : main-loop ( -- )
-  redraw
   begin
     key control
     place-cursor
   again ;
 
-s" Hello, world" insert
-s" !" insert
-col 6 - to col
-newline
-s" there, " insert
-\ print-file
-\ redraw do-insert redraw key bye
+: init ( -- )
+  argc @ 2 < if redraw exit then
+  1 arg set-filename
+  o-file if
+    redraw
+    at-bottom
+    ." new file "
+    filename-str type
+  else
+    redraw
+    at-bottom
+    ." opened " nlines .
+    ." lines from "
+    filename-str type
+  then
+  place-cursor ;
+
+init
 main-loop
 
