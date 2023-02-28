@@ -32,7 +32,7 @@ create filename filename-size allot
   col 1+ to col
   col to vx ;
 
-: line-copy ( n1 n2 -- )
+: line-copy ( n1 n2 -- ) \ n1 to n2
   line swap line swap
   line-size 0 do
     over c@ over c!
@@ -68,6 +68,44 @@ create filename filename-size allot
   row 1+ to row
   0 to col 
   0 to vx ;
+
+: delete-line ( -- )
+  nlines row 1+ do
+    i 1+ i line-copy
+  loop
+  nlines 1- to nlines ;
+
+: trim-leading ( str len -- str len )
+  begin over c@ 32 <= over 0<> and while
+    1- swap 1+ swap
+  repeat ;
+
+: join ( -- )
+  row nlines 1- = if exit then
+  -1 to unsaved
+  row line
+  dup c@ to col
+  dup line-size +
+  dup 1+ swap c@ trim-leading
+  swap 1- swap
+  dup if
+    2 pick
+    dup c@ dup if
+      1+ over c!
+      col 1+ to col
+      col + 32 swap c!
+    else
+      2drop
+    then
+    dup >r -rot r>
+    0 do
+      2dup i + 1+ c@ swap i + 1+ col + c!
+    loop
+    drop swap over c@ + swap c!
+  else
+    col 1- to col
+  then
+  delete-line ;
 
 : insert ( addr n -- )
   dup 0= if 2drop exit then
@@ -131,11 +169,18 @@ create filename filename-size allot
 : redraw ( -- )
   page
   scroll
-  h 1- nlines scroll - min 0 do
-    dup i + line dup
-    dup 1+ swap c@
-    type cr
-    c@ w / 1+
+  \ h 1- nlines scroll - min 0 do
+  h 1- 0 do
+    dup i + dup nlines < if
+      line dup
+      dup 1+ swap c@
+      type cr
+      c@ w / 1+
+    else
+      drop
+      [char] ~ emit cr
+      1
+    then
   +loop
   drop ;
 
@@ -199,6 +244,9 @@ create filename filename-size allot
   again ;
 
 : strchr ( str len c -- str len )
+  over 0= if
+    drop exit
+  then
   >r dup -rot r> -rot
   0 do
     2dup c@ = if
@@ -262,8 +310,7 @@ create filename filename-size allot
     then
   until
   close-file drop
-  col nlines line c!
-  nlines 1+ to nlines
+  nlines 1- to nlines
   0 to col
   0 to row
   0 to vx
@@ -311,6 +358,12 @@ create filename filename-size allot
 
 : command ( -- )
   get-command
+  dup 0= if
+    2drop 2drop
+    at-bottom
+    place-cursor
+    exit
+  then
   2dup s" q" str= if
     check-save
     2drop 2drop
@@ -322,7 +375,6 @@ create filename filename-size allot
     at-bottom bye
   then
   2dup s" w" str= if
-    check-save
     2drop set-filename
     at-bottom
     filename c@ 0= if
@@ -367,6 +419,25 @@ create filename filename-size allot
   dup [char] j = if
     drop down exit
   then
+  dup 2 = if
+    drop
+    scroll h - to scroll
+    scroll 0< if 0 to scroll then
+    scroll h + 2 - to row
+    row nlines >= if
+      nlines 1- to row
+    then
+    bind-cursor redraw
+    exit
+  then
+  dup 6 = if
+    drop
+    scroll h + to scroll
+    scroll nlines >= if nlines 1- to scroll then
+    row scroll < if scroll to row then
+    bind-cursor redraw
+    exit
+  then
   dup [char] i = if
     drop do-insert exit
   then
@@ -394,7 +465,7 @@ create filename filename-size allot
   then
   dup [char] x = if
     drop
-    delete 8 emit print-end
+    delete print-end
     exit
   then
   dup [char] X = if
@@ -404,6 +475,19 @@ create filename filename-size allot
       col to vx
       delete 8 emit print-end
     then
+    exit
+  then
+  dup [char] J = if
+    drop
+    join redraw
+    exit
+  then
+  dup [char] D = if
+    drop
+    0 to col
+    0 to vx
+    0 row line c!
+    redraw
     exit
   then
   dup [char] : = if
@@ -425,3 +509,4 @@ s" there, " insert
 \ print-file
 \ redraw do-insert redraw key bye
 main-loop
+
