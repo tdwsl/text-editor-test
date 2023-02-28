@@ -354,12 +354,6 @@ create filename filename-size allot
   place-cursor
   2drop 2drop ;
 
-: when ( -- )
-  dup char = if
-    drop ' execute
-    >r exit
-  then ; immediate
-
 : control ( -- )
   dup [char] h = if
     drop left exit
