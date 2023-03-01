@@ -495,7 +495,8 @@ create filename filename-size allot
   then
   dup [char] : = if
     drop command exit
-  then ;
+  then
+  drop ;
 
 : main-loop ( -- )
   begin
